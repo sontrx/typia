@@ -31,21 +31,31 @@ export namespace IsProgrammer {
     numeric: OptionPredicator.numeric({
       numeric: props.options?.numeric,
     }),
-    atomist: ({ entry }) =>
-      [
-        ...(entry.expression ? [entry.expression] : []),
-        ...(entry.conditions.length === 0
-          ? []
-          : [
-              entry.conditions
-                .map((set) =>
-                  set
-                    .map((s) => s.expression)
-                    .reduce((a, b) => ts.factory.createLogicalAnd(a, b)),
-                )
-                .reduce((a, b) => ts.factory.createLogicalOr(a, b)),
-            ]),
-      ].reduce((x, y) => ts.factory.createLogicalAnd(x, y)),
+    atomist: ({ entry }) => {
+      let expressions = entry.expression ? [entry.expression] : [];
+      let defaultConditions: ts.Expression[] = [];
+      let conditions = entry.conditions.length === 0
+      ? []
+      : [
+          entry.conditions
+            .map((set) =>
+              set
+                .filter((s) => {
+                  let isDefault = s.expected.includes("Default");
+                  if (isDefault) {
+                    defaultConditions.push(s.expression);
+                    return false;
+                  }
+                  return true;
+                })
+                .map((s) => s.expression)
+                .reduce((a, b) => ts.factory.createLogicalAnd(a, b)),
+            )
+            .reduce((a, b) => ts.factory.createLogicalOr(a, b)),
+        ];
+      let nodes = [...defaultConditions, ...expressions, ...conditions];
+      return nodes.reduce((x, y) => ts.factory.createLogicalAnd(x, y));
+    },
     combiner: (next) => {
       const initial: ts.TrueLiteral | ts.FalseLiteral =
         next.logic === "and"

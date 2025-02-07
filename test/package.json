@@ -13,6 +13,7 @@
     "build": "rimraf bin && tsc",
     "build_run": "npm run build",
     "generate": "typia generate --input generate/input --output generate/output --project tsconfig.generate.json && tsc --project tsconfig.generate.json && prettier generate/output/*.ts --write && ts-node build/validate-generate.ts",
+    "generate-test": "typia generate --input .vscode/input --output .vscode/output --project tsconfig.generate.json && tsc --project tsconfig.generate.json && prettier .vscode/output/*.ts --write && ts-node build/validate-generate.ts",
     "prepare": "ts-patch install",
     "prettier": "prettier ./src/**/*.ts --write",
     "setup": "node build/setup.js",

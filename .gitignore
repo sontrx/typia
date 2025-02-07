@@ -11,3 +11,4 @@ bun.lock
 
 *.log
 *.tgz
+.vscode

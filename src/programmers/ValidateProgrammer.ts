@@ -42,57 +42,49 @@ export namespace ValidateProgrammer {
         trace: true,
         numeric: OptionPredicator.numeric(props.context.options),
         equals: props.config.equals,
-        atomist: (next) =>
-          [
-            ...(next.entry.expression ? [next.entry.expression] : []),
-            ...(next.entry.conditions.length === 0
-              ? []
-              : next.entry.conditions.length === 1
-                ? next.entry.conditions[0]!.map((cond) =>
-                    ts.factory.createLogicalOr(
-                      cond.expression,
-                      create_report_call({
-                        exceptionable:
-                          next.explore.from === "top"
-                            ? ts.factory.createTrue()
-                            : ts.factory.createIdentifier("_exceptionable"),
-                        path: ts.factory.createIdentifier(
-                          next.explore.postfix
-                            ? `_path + ${next.explore.postfix}`
-                            : "_path",
-                        ),
-                        expected: cond.expected,
-                        input: next.input,
-                      }),
-                    ),
+        atomist: (next) => {
+          let defaultConditions: ts.Expression[] = [];
+          let conditions = next.entry.conditions.length === 0
+          ? []
+          : [
+              ts.factory.createLogicalOr(
+                next.entry.conditions
+                  .map((set) =>
+                    set.filter((s) => {
+                      let isDefault = s.expected.includes("Default");
+                      if (isDefault) {
+                        defaultConditions.push(s.expression);
+                        return false;
+                      }
+                      return true;
+                    })
+                      .map((s) => s.expression)
+                      .reduce((a, b) =>
+                        ts.factory.createLogicalAnd(a, b),
+                      ),
                   )
-                : [
-                    ts.factory.createLogicalOr(
-                      next.entry.conditions
-                        .map((set) =>
-                          set
-                            .map((s) => s.expression)
-                            .reduce((a, b) =>
-                              ts.factory.createLogicalAnd(a, b),
-                            ),
-                        )
-                        .reduce((a, b) => ts.factory.createLogicalOr(a, b)),
-                      create_report_call({
-                        exceptionable:
-                          next.explore.from === "top"
-                            ? ts.factory.createTrue()
-                            : ts.factory.createIdentifier("_exceptionable"),
-                        path: ts.factory.createIdentifier(
-                          next.explore.postfix
-                            ? `_path + ${next.explore.postfix}`
-                            : "_path",
-                        ),
-                        expected: next.entry.expected,
-                        input: next.input,
-                      }),
-                    ),
-                  ]),
-          ].reduce((x, y) => ts.factory.createLogicalAnd(x, y)),
+                  .reduce((a, b) => ts.factory.createLogicalOr(a, b)),
+                create_report_call({
+                  exceptionable:
+                    next.explore.from === "top"
+                      ? ts.factory.createTrue()
+                      : ts.factory.createIdentifier("_exceptionable"),
+                  path: ts.factory.createIdentifier(
+                    next.explore.postfix
+                      ? `_path + ${next.explore.postfix}`
+                      : "_path",
+                  ),
+                  expected: next.entry.expected,
+                  input: next.input,
+                }),
+              ),
+            ];
+          return [
+            ...defaultConditions,
+            ...(next.entry.expression ? [next.entry.expression] : []),
+            ...conditions,
+          ].reduce((x, y) => ts.factory.createLogicalAnd(x, y));
+        },
         combiner: combine(props),
         joiner: joiner(props),
         success: ts.factory.createTrue(),

@@ -12,6 +12,12 @@ export type Default<Value extends boolean | bigint | number | string> =
     kind: "default";
     value: Value;
     exclusive: true;
+    validate: `(() => {
+      if ($input === undefined) {
+        $input = ${Value extends string ? `"${Value}"` : Value}
+      }
+      return true;
+    })()`;
     schema: Value extends bigint
       ? { default: Numeric<Value> }
       : { default: Value };
