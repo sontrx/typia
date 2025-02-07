@@ -119,5 +119,5 @@
     "gemini",
     "llama"
   ],
-  "private": true
+  "private": false
 }
