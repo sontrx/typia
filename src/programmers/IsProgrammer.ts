@@ -34,20 +34,26 @@ export namespace IsProgrammer {
     atomist: ({ entry }) => {
       let expressions = entry.expression ? [entry.expression] : [];
       let defaultConditions: ts.Expression[] = [];
+
+      let newConditions = entry.conditions.map((set) => {
+        let newSet = set.filter((s) => {
+          let isDefault = s.expected.includes("Default");
+          if (isDefault) {
+            defaultConditions.push(s.expression);
+            return false;
+          }
+          return true;
+        });
+        return newSet;
+      }).filter((item) => item.length > 0);
+      entry.conditions = newConditions;
+
       let conditions = entry.conditions.length === 0
       ? []
       : [
           entry.conditions
             .map((set) =>
               set
-                .filter((s) => {
-                  let isDefault = s.expected.includes("Default");
-                  if (isDefault) {
-                    defaultConditions.push(s.expression);
-                    return false;
-                  }
-                  return true;
-                })
                 .map((s) => s.expression)
                 .reduce((a, b) => ts.factory.createLogicalAnd(a, b)),
             )

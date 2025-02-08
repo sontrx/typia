@@ -48,20 +48,46 @@ export namespace AssertProgrammer {
         equals: props.config.equals,
         atomist: (next) => {
           let defaultConditions: ts.Expression[] = [];
+          let newConditions = next.entry.conditions.map((set) => {
+            let newSet = set.filter((s) => {
+              let isDefault = s.expected.includes("Default");
+              if (isDefault) {
+                defaultConditions.push(s.expression);
+                return false;
+              }
+              return true;
+            });
+            return newSet;
+          }).filter((item) => item.length > 0);
+          next.entry.conditions = newConditions;
           let conditions = next.entry.conditions.length === 0
           ? []
-          : [
+          : next.entry.conditions.length === 1
+            ? next.entry.conditions[0]!.map((cond) =>
+                ts.factory.createLogicalOr(
+                  cond.expression,
+                  create_guard_call({
+                    context: props.context,
+                    functor: props.functor,
+                    exceptionable:
+                      next.explore.from === "top"
+                        ? ts.factory.createTrue()
+                        : ts.factory.createIdentifier("_exceptionable"),
+                    path: ts.factory.createIdentifier(
+                      next.explore.postfix
+                        ? `_path + ${next.explore.postfix}`
+                        : "_path",
+                    ),
+                    expected: cond.expected,
+                    input: next.input,
+                  }),
+                ),
+              )
+            : [
               ts.factory.createLogicalOr(
                 next.entry.conditions
                   .map((set) =>
-                    set.filter((s) => {
-                      let isDefault = s.expected.includes("Default");
-                      if (isDefault) {
-                        defaultConditions.push(s.expression);
-                        return false;
-                      }
-                      return true;
-                    })
+                    set
                       .map((s) => s.expression)
                       .reduce((a, b) =>
                         ts.factory.createLogicalAnd(a, b),
@@ -85,6 +111,7 @@ export namespace AssertProgrammer {
                 }),
               ),
             ];
+
           return [
             ...defaultConditions,
             ...(next.entry.expression ? [next.entry.expression] : []),
